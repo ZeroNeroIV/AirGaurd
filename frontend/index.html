@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirGuard - Real-Time Air Quality Monitoring</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/typed.js/2.0.12/typed.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/splitting@1.0.6/dist/splitting.css">
+    <script src="https://unpkg.com/splitting@1.0.6/dist/splitting.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --forest-green: #2D5016;
+            --sage-green: #8FBC8F;
+            --warm-cream: #F5F5DC;
+            --charcoal: #36454F;
+            --amber-alert: #FFBF00;
+            --coral-red: #FF4040;
+            --sky-blue: #87CEEB;
+            --lavender: #E6E6FA;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--warm-cream) 0%, #f8f9fa 100%);
+            color: var(--charcoal);
+        }
+        
+        .hero-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+        }
+        
+        .data-font {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .aqi-good { background: linear-gradient(135deg, var(--sky-blue), #98D8C8); }
+        .aqi-moderate { background: linear-gradient(135deg, var(--amber-alert), #FFD700); }
+        .aqi-unhealthy { background: linear-gradient(135deg, var(--coral-red), #FF6B6B); }
+        
+        .particle-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        
+        .metric-card {
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--forest-green);
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+        
+        .scroll-reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .north-america-bg {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600"><path d="M200,100 Q300,80 400,120 L450,150 Q500,180 550,200 L600,220 Q650,240 700,260 L750,280 Q800,300 850,320 L900,340 Q950,360 980,380 L990,400 Q995,420 998,440 L999,460 Q1000,480 1000,500 L1000,550 Q1000,580 990,590 L980,595 Q970,598 950,599 L900,600 Q850,600 800,600 L750,600 Q700,600 650,600 L600,600 Q550,600 500,600 L450,600 Q400,600 350,600 L300,600 Q250,600 200,600 L150,600 Q100,600 50,600 L20,600 Q10,600 5,590 L2,580 Q1,570 1,550 L1,500 Q1,450 2,400 L5,350 Q10,300 20,250 L30,200 Q40,150 50,120 L60,100 Q70,80 80,70 L100,60 Q150,50 200,100 Z" fill="%23e6f3ff" stroke="%23b3d9ff" stroke-width="2" opacity="0.3"/></svg>');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        .popup-card {
+            position: absolute;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            padding: 20px;
+            min-width: 300px;
+            z-index: 1000;
+            transform: scale(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .popup-card.active {
+            transform: scale(1);
+        }
+        
+        .region-circle {
+            cursor: pointer;
+            transition: r 0.3s ease, fill-opacity 0.3s ease;
+            transform-origin: center;
+        }
+        
+        .region-circle:not(:hover) {
+            /* No special styles needed for non-hover state */
+        }
+    </style>
+</head>
+<body>
+    <!-- Particle Background -->
+    <div id="particle-bg" class="particle-bg"></div>
+    
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 glass-effect">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">AG</span>
+                    </div>
+                    <span class="hero-title text-xl text-gray-800">AirGuard</span>
+                </div>
+                
+                <div class="hidden md:flex space-x-8">
+                    <a href="index.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Dashboard</a>
+                    <a href="forecast.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Forecast</a>
+                    <a href="alerts.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Alerts</a>
+                    <a href="validation.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Data Validation</a>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="w-3 h-3 bg-green-400 rounded-full pulse-animation"></div>
+                    <span class="text-sm text-gray-600">Live Data</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Hero Section -->
+    <section class="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12">
+                <h1 class="hero-title text-5xl md:text-7xl text-gray-800 mb-6" data-splitting>
+                    Breathe Smarter
+                </h1>
+                <p class="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
+                    Real-time air quality monitoring powered by NASA TEMPO satellite data and ground-based sensors
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="scrollToSection('map-section')" class="px-8 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg font-semibold hover:from-green-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105">
+                        View Live Data
+                    </button>
+                    <button onclick="window.location.href='alerts.html'" class="px-8 py-4 border-2 border-green-600 text-green-600 rounded-lg font-semibold hover:bg-green-600 hover:text-white transition-all duration-300">
+                        Set Up Alerts
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Current Conditions -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Current Air Quality</h2>
+                <p class="text-lg text-gray-600">Real-time data from TEMPO satellite and ground stations</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                <!-- AQI Card -->
+                <div class="metric-card bg-white rounded-xl p-6 shadow-lg scroll-reveal" onclick="window.location.href='aqi-details.html'">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700">Air Quality Index</h3>
+                        <div class="w-4 h-4 bg-green-400 rounded-full pulse-animation"></div>
+                    </div>
+                    <div class="text-4xl font-bold text-green-600 mb-2" id="aqi-value">42</div>
+                    <div class="text-sm text-gray-500 mb-4">Good</div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-400 h-2 rounded-full" style="width: 21%"></div>
+                    </div>
+                </div>
+                
+                <!-- PM2.5 Card -->
+                <div class="metric-card bg-white rounded-xl p-6 shadow-lg scroll-reveal" onclick="window.location.href='pm25-details.html'">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700">PM2.5</h3>
+                        <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">μg/m³</span>
+                    </div>
+                    <div class="text-4xl font-bold text-blue-600 mb-2" id="pm25-value">8.2</div>
+                    <div class="text-sm text-gray-500 mb-4">Low</div>
+                    <div class="text-xs text-gray-400">WHO Guideline: 5 μg/m³</div>
+                </div>
+                
+                <!-- NO2 Card -->
+                <div class="metric-card bg-white rounded-xl p-6 shadow-lg scroll-reveal" onclick="window.location.href='no2-details.html'">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700">NO₂</h3>
+                        <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">ppb</span>
+                    </div>
+                    <div class="text-4xl font-bold text-purple-600 mb-2" id="no2-value">12.4</div>
+                    <div class="text-sm text-gray-500 mb-4">Moderate</div>
+                    <div class="text-xs text-gray-400">EPA Standard: 53 ppb</div>
+                </div>
+                
+                <!-- Ozone Card -->
+                <div class="metric-card bg-white rounded-xl p-6 shadow-lg scroll-reveal" onclick="window.location.href='o3-details.html'">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700">O₃</h3>
+                        <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">ppb</span>
+                    </div>
+                    <div class="text-4xl font-bold text-orange-600 mb-2" id="o3-value">28.7</div>
+                    <div class="text-sm text-gray-500 mb-4">Good</div>
+                    <div class="text-xs text-gray-400">8-hr Average</div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Interactive Map Section -->
+    <section id="map-section" class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-8 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">North America Air Quality Map</h2>
+                <p class="text-lg text-gray-600">Interactive map showing real-time air quality from TEMPO satellite and ground stations</p>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden scroll-reveal">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center space-x-4">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-4 h-4 bg-green-400 rounded-full"></div>
+                                <span class="text-sm text-gray-600">Good (0-50)</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-4 h-4 bg-yellow-400 rounded-full"></div>
+                                <span class="text-sm text-gray-600">Moderate (51-100)</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-4 h-4 bg-red-400 rounded-full"></div>
+                                <span class="text-sm text-gray-600">Unhealthy (101+)</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-4">
+                            <select id="pollutant-select" class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                <option value="aqi">AQI (Overall)</option>
+                                <option value="pm25">PM2.5</option>
+                                <option value="no2">NO₂</option>
+                                <option value="o3">O₃</option>
+                            </select>
+                            
+                            <button id="locate-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+                                📍 My Location
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="relative h-96 rounded-xl overflow-hidden">
+                    <div id="air-quality-map" class="w-full h-full z-0"></div>
+                    
+                    <!-- Map Loading Overlay -->
+                    <div id="map-loading" class="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
+                        <div class="text-center">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+                            <p class="text-gray-600">Loading air quality data...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Popup Card -->
+                    <div id="popup-card" class="popup-card z-20">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 id="popup-title" class="text-lg font-semibold text-gray-800"></h3>
+                            <button id="close-popup" class="text-gray-400 hover:text-gray-600">✕</button>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">AQI:</span>
+                                <span id="popup-aqi" class="text-sm font-semibold"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">PM2.5:</span>
+                                <span id="popup-pm25" class="text-sm font-semibold"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">NO₂:</span>
+                                <span id="popup-no2" class="text-sm font-semibold"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">O₃:</span>
+                                <span id="popup-o3" class="text-sm font-semibold"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Last Updated:</span>
+                                <span id="popup-time" class="text-sm text-gray-500"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Health Recommendations -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Health Recommendations</h2>
+                <p class="text-lg text-gray-600">Personalized advice based on current air quality conditions</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="metric-card bg-white rounded-xl p-6 shadow-lg scroll-reveal" onclick="window.location.href='outdoor-activities.html'">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                        <span class="text-2xl">🏃‍♂️</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Outdoor Activities</h3>
+                    <p class="text-gray-600 mb-4">Air quality is good for all outdoor activities. Enjoy your time outside!</p>
+                    <div class="text-sm text-green-600 font-medium">✓ Safe for exercise</div>
+                </div>
+                
+                <div class="metric-card bg-white rounded-xl p-6 shadow-lg scroll-reveal" onclick="window.location.href='indoor-air.html'">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                        <span class="text-2xl">🏠</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Indoor Air Quality</h3>
+                    <p class="text-gray-600 mb-4">Consider opening windows for natural ventilation. Indoor plants can help maintain air quality.</p>
+                    <div class="text-sm text-blue-600 font-medium">✓ Good ventilation recommended</div>
+                </div>
+                
+                <div class="metric-card bg-white rounded-xl p-6 shadow-lg scroll-reveal" onclick="window.location.href='sensitive-groups.html'">
+                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                        <span class="text-2xl">💊</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Sensitive Groups</h3>
+                    <p class="text-gray-600 mb-4">People with respiratory conditions should monitor symptoms but can engage in normal activities.</p>
+                    <div class="text-sm text-purple-600 font-medium">⚠️ Monitor symptoms</div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Data Sources -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Data Sources</h2>
+                <p class="text-lg text-gray-600">Powered by NASA TEMPO and comprehensive ground-based monitoring networks</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white rounded-xl p-6 shadow-lg text-center scroll-reveal" onclick="window.location.href='tempo-details.html'">
+                    <img src="resources/satellite-tempo.jpg" alt="NASA TEMPO Satellite" class="w-full h-48 object-cover rounded-lg mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">NASA TEMPO</h3>
+                    <p class="text-gray-600 text-sm">Geostationary satellite providing hourly measurements of ozone, NO₂, and formaldehyde across North America</p>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 shadow-lg text-center scroll-reveal" onclick="window.location.href='ground-networks.html'">
+                    <img src="resources/ground-station.jpg" alt="Ground Monitoring Station" class="w-full h-48 object-cover rounded-lg mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Ground Stations</h3>
+                    <p class="text-gray-600 text-sm">EPA, Pandora, and OpenAQ networks providing real-time validation and local measurements</p>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 shadow-lg text-center scroll-reveal" onclick="window.location.href='weather-integration.html'">
+                    <img src="resources/weather-forecast.jpg" alt="Weather Integration" class="w-full h-48 object-cover rounded-lg mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Weather Data</h3>
+                    <p class="text-gray-600 text-sm">Meteorological integration for improved forecasting and air quality predictions</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="flex items-center justify-center space-x-2 mb-4">
+                <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-sm">AG</span>
+                </div>
+                <span class="hero-title text-xl">AirGuard</span>
+            </div>
+            <p class="text-gray-400 text-sm">
+                AirGuard - Protecting health through advanced air quality monitoring.
+            </p>
+        </div>
+    </footer>
+    
+    <script src="main.js"></script>
+</body>
+</html>

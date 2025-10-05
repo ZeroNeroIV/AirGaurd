@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirGuard - Air Quality Forecasting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/typed.js/2.0.12/typed.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/splitting@1.0.6/dist/splitting.css">
+    <script src="https://unpkg.com/splitting@1.0.6/dist/splitting.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --forest-green: #2D5016;
+            --sage-green: #8FBC8F;
+            --warm-cream: #F5F5DC;
+            --charcoal: #36454F;
+            --amber-alert: #FFBF00;
+            --coral-red: #FF4040;
+            --sky-blue: #87CEEB;
+            --lavender: #E6E6FA;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--warm-cream) 0%, #f8f9fa 100%);
+            color: var(--charcoal);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        main {
+            flex: 1 0 auto;
+        }
+
+        /* Ensure footer stays at the bottom and avoid extra blank space */
+        footer {
+            margin-top: auto;
+        }
+        
+        .hero-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .forecast-card {
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+        
+        .forecast-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--forest-green);
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        
+        .timeline-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #87CEEB, #FFD700, #FF6B6B);
+            outline: none;
+        }
+        
+        .timeline-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #2D5016;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .timeline-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #2D5016;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+        
+        .scroll-reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .confidence-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(to right, #FF6B6B, #FFD700, #98D8C8);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 glass-effect">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">AG</span>
+                    </div>
+                    <span class="hero-title text-xl text-gray-800">AirGuard</span>
+                </div>
+                
+                <div class="hidden md:flex space-x-8">
+                    <a href="index.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Dashboard</a>
+                    <a href="forecast.html" class="nav-link text-green-600 font-medium">Forecast</a>
+                    <a href="alerts.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Alerts</a>
+                    <a href="validation.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Data Validation</a>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    <span class="text-sm text-gray-600">Live Data</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Hero Section -->
+    <section class="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto text-center">
+            <h1 class="hero-title text-5xl md:text-6xl text-gray-800 mb-6" data-splitting>
+                Air Quality Forecasting
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
+                7-day predictions powered by NASA TEMPO data and advanced meteorological modeling
+            </p>
+        </div>
+    </section>
+    
+    <!-- Forecast Controls -->
+    <section class="py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Location:</label>
+                        <select id="location-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <option value="nyc">New York, NY</option>
+                            <option value="la">Los Angeles, CA</option>
+                            <option value="chicago">Chicago, IL</option>
+                            <option value="houston">Houston, TX</option>
+                            <option value="phoenix">Phoenix, AZ</option>
+                            <option value="philadelphia">Philadelphia, PA</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Pollutant:</label>
+                        <select id="forecast-pollutant" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <option value="aqi">Overall AQI</option>
+                            <option value="pm25">PM2.5</option>
+                            <option value="no2">NO₂</option>
+                            <option value="o3">O₃</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Time Range:</label>
+                        <select id="time-range" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <option value="7d">7 Days</option>
+                            <option value="14d">14 Days</option>
+                            <option value="30d">30 Days</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex items-end">
+                        <button id="update-forecast" class="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+                            Update Forecast
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4 mt-6">
+                    <label class="text-sm font-medium text-gray-700 min-w-0">Forecast Timeline:</label>
+                    <input type="range" id="timeline-slider" class="timeline-slider flex-1" min="0" max="6" value="0" step="1">
+                    <span id="timeline-label" class="text-sm font-medium text-gray-700 min-w-0">Today</span>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Current Forecast Display -->
+    <section class="py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Main Forecast Chart -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-2xl font-semibold text-gray-800">7-Day Forecast</h3>
+                            <div class="flex items-center space-x-2">
+                                <button id="chart-toggle" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+                                    Weather Overlay
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="forecast-chart" class="h-96"></div>
+                    </div>
+                </div>
+                
+                <!-- Current Day Details -->
+                <div class="space-y-6">
+                    <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Today's Forecast</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Overall AQI</span>
+                                <span class="text-2xl font-bold text-green-600" id="current-aqi">42</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">PM2.5</span>
+                                <span class="text-lg font-semibold text-blue-600" id="current-pm25">8.2 μg/m³</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">NO₂</span>
+                                <span class="text-lg font-semibold text-purple-600" id="current-no2">12.4 ppb</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">O₃</span>
+                                <span class="text-lg font-semibold text-orange-600" id="current-o3">28.7 ppb</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 pt-4 border-t border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Confidence</span>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-16 h-2 bg-gray-200 rounded-full">
+                                        <div class="w-12 h-2 bg-green-400 rounded-full"></div>
+                                    </div>
+                                    <span class="text-sm text-gray-500">85%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Weather Impact</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">🌤️</span>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">Partly Cloudy</p>
+                                    <p class="text-xs text-gray-500">Wind: 8 mph NW</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">🌡️</span>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">72°F / 56°F</p>
+                                    <p class="text-xs text-gray-500">Humidity: 65%</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">💨</span>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">Good Dispersion</p>
+                                    <p class="text-xs text-gray-500">Atmospheric mixing favorable</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Detailed Forecast Cards -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">7-Day Outlook</h2>
+                <p class="text-lg text-gray-600">Detailed daily forecasts with confidence intervals</p>
+            </div>
+            
+            <div id="forecast-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+                <!-- Forecast cards will be generated by JavaScript -->
+            </div>
+        </div>
+    </section>
+    
+    <!-- Health Recommendations -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Weekly Health Guidance</h2>
+                <p class="text-lg text-gray-600">Personalized recommendations based on forecast conditions</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-white rounded-xl p-6 shadow-lg scroll-reveal">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                        <span class="text-2xl">🏃‍♂️</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Best Exercise Days</h3>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">Monday</span>
+                            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Excellent</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">Wednesday</span>
+                            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Excellent</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">Friday</span>
+                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Good</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 shadow-lg scroll-reveal">
+                    <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
+                        <span class="text-2xl">⚠️</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Caution Days</h3>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">Tuesday</span>
+                            <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Moderate</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">Thursday</span>
+                            <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Moderate</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Sensitive individuals should limit outdoor activities</p>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 shadow-lg scroll-reveal">
+                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                        <span class="text-2xl">🏠</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Indoor Activity Days</h3>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">Saturday</span>
+                            <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Poor</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">Sunday</span>
+                            <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">Unhealthy</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Consider air purifiers and limit outdoor exposure</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Forecast Methodology -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Forecast Methodology</h2>
+                <p class="text-lg text-gray-600">Advanced modeling combining satellite data, weather patterns, and ground observations</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="text-center scroll-reveal">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl">🛰️</span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">TEMPO Satellite</h3>
+                    <p class="text-sm text-gray-600">Hourly measurements of key pollutants across North America with 2km resolution</p>
+                </div>
+                
+                <div class="text-center scroll-reveal">
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl">🌤️</span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Weather Integration</h3>
+                    <p class="text-sm text-gray-600">Meteorological data including wind patterns, temperature, and atmospheric pressure</p>
+                </div>
+                
+                <div class="text-center scroll-reveal">
+                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl">📊</span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Ground Validation</h3>
+                    <p class="text-sm text-gray-600">Real-time validation using EPA, Pandora, and OpenAQ monitoring networks</p>
+                </div>
+                
+                <div class="text-center scroll-reveal">
+                    <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl">🧠</span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">AI Modeling</h3>
+                    <p class="text-sm text-gray-600">Machine learning algorithms analyzing historical patterns and emission sources</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="flex items-center justify-center space-x-2 mb-4">
+                <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-sm">AG</span>
+                </div>
+                <span class="hero-title text-xl">AirGuard</span>
+            </div>
+            <p class="text-gray-400 text-sm">
+                AirGuard - Protecting health through advanced air quality monitoring.
+            </p>
+        </div>
+    </footer>
+    
+    <script src="main.js"></script>
+    <script>
+        // Forecast page specific functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeForecastPage();
+        });
+        
+        function initializeForecastPage() {
+            initializeScrollAnimations();
+            initializeForecastChart();
+            generateForecastCards();
+            initializeTimelineSlider();
+            initializeLocationSelector();
+            initializeForecastControls();
+        }
+        
+        function initializeForecastChart() {
+            const chartDom = document.getElementById('forecast-chart');
+            const myChart = echarts.init(chartDom);
+            
+            // Generate forecast data
+            const dates = [];
+            const aqiData = [];
+            const pm25Data = [];
+            const no2Data = [];
+            const o3Data = [];
+            
+            for (let i = 0; i < 7; i++) {
+                const date = new Date();
+                date.setDate(date.getDate() + i);
+                dates.push(date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+                
+                // Simulate realistic air quality patterns
+                aqiData.push(Math.floor(Math.random() * 80) + 20);
+                pm25Data.push((Math.random() * 25 + 5).toFixed(1));
+                no2Data.push((Math.random() * 30 + 10).toFixed(1));
+                o3Data.push((Math.random() * 50 + 20).toFixed(1));
+            }
+            
+            const option = {
+                title: {
+                    text: '7-Day Air Quality Forecast',
+                    left: 'center',
+                    textStyle: {
+                        fontSize: 18,
+                        fontWeight: 'normal',
+                        color: '#36454F'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross'
+                    }
+                },
+                legend: {
+                    data: ['AQI', 'PM2.5', 'NO₂', 'O₃'],
+                    bottom: 10
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    axisLine: {
+                        lineStyle: {
+                            color: '#8FBC8F'
+                        }
+                    }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: 'AQI',
+                        position: 'left',
+                        axisLine: {
+                            lineStyle: {
+                                color: '#87CEEB'
+                            }
+                        }
+                    },
+                    {
+                        type: 'value',
+                        name: 'Concentration',
+                        position: 'right',
+                        axisLine: {
+                            lineStyle: {
+                                color: '#8FBC8F'
+                            }
+                        }
+                    }
+                ],
+                series: [
+                    {
+                        name: 'AQI',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: aqiData,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#87CEEB',
+                            width: 3
+                        },
+                        itemStyle: {
+                            color: '#87CEEB'
+                        },
+                        areaStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0,
+                                y: 0,
+                                x2: 0,
+                                y2: 1,
+                                colorStops: [{
+                                    offset: 0, color: 'rgba(135, 206, 235, 0.3)'
+                                }, {
+                                    offset: 1, color: 'rgba(135, 206, 235, 0.1)'
+                                }]
+                            }
+                        }
+                    },
+                    {
+                        name: 'PM2.5',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: pm25Data,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#8FBC8F',
+                            width: 2
+                        },
+                        itemStyle: {
+                            color: '#8FBC8F'
+                        }
+                    },
+                    {
+                        name: 'NO₂',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: no2Data,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#DDA0DD',
+                            width: 2
+                        },
+                        itemStyle: {
+                            color: '#DDA0DD'
+                        }
+                    },
+                    {
+                        name: 'O₃',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: o3Data,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#FFD700',
+                            width: 2
+                        },
+                        itemStyle: {
+                            color: '#FFD700'
+                        }
+                    }
+                ]
+            };
+            
+            myChart.setOption(option);
+            
+            // Make chart responsive
+            window.addEventListener('resize', function() {
+                myChart.resize();
+            });
+        }
+        
+        function generateForecastCards() {
+            const container = document.getElementById('forecast-cards');
+            const days = ['Today', 'Tomorrow', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const weatherIcons = ['🌤️', '☀️', '⛅', '🌦️', '☀️', '⛈️', '🌤️'];
+            
+            container.innerHTML = ''; // Clear existing cards
+            
+            days.forEach((day, index) => {
+                const aqi = Math.floor(Math.random() * 120) + 20;
+                const weatherIcon = weatherIcons[index];
+                
+                let aqiColor, aqiLevel;
+                if (aqi <= 50) {
+                    aqiColor = 'text-green-600';
+                    aqiLevel = 'Good';
+                } else if (aqi <= 100) {
+                    aqiColor = 'text-yellow-600';
+                    aqiLevel = 'Moderate';
+                } else {
+                    aqiColor = 'text-red-600';
+                    aqiLevel = 'Unhealthy';
+                }
+                
+                const card = document.createElement('div');
+                card.className = 'forecast-card bg-white rounded-xl p-4 shadow-lg text-center cursor-pointer';
+                card.onclick = () => window.location.href = `day-forecast.html?day=${index}`;
+                
+                card.innerHTML = `
+                    <div class="text-2xl mb-2">${weatherIcon}</div>
+                    <h4 class="font-semibold text-gray-800 mb-2">${day}</h4>
+                    <div class="text-3xl font-bold ${aqiColor} mb-1">${aqi}</div>
+                    <p class="text-sm text-gray-600 mb-3">${aqiLevel}</p>
+                    <div class="space-y-1 text-xs text-gray-500">
+                        <div>PM2.5: ${(Math.random() * 20 + 5).toFixed(1)}</div>
+                        <div>NO₂: ${(Math.random() * 25 + 10).toFixed(1)}</div>
+                        <div>O₃: ${(Math.random() * 40 + 20).toFixed(1)}</div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="confidence-bar mb-1"></div>
+                        <p class="text-xs text-gray-500">${Math.floor(Math.random() * 20) + 75}% confidence</p>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+        
+        function initializeTimelineSlider() {
+            const slider = document.getElementById('timeline-slider');
+            const label = document.getElementById('timeline-label');
+            const days = ['Today', 'Tomorrow', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            
+            slider.addEventListener('input', function() {
+                const dayIndex = parseInt(this.value);
+                label.textContent = days[dayIndex];
+                
+                // Update current day display
+                updateCurrentDayDisplay(dayIndex);
+            });
+        }
+        
+        function updateCurrentDayDisplay(dayIndex) {
+            // Simulate different values for different days
+            const dayData = {
+                aqi: Math.floor(Math.random() * 120) + 20,
+                pm25: (Math.random() * 30 + 5).toFixed(1),
+                no2: (Math.random() * 35 + 10).toFixed(1),
+                o3: (Math.random() * 50 + 20).toFixed(1)
+            };
+            
+            document.getElementById('current-aqi').textContent = dayData.aqi;
+            document.getElementById('current-pm25').textContent = dayData.pm25 + ' μg/m³';
+            document.getElementById('current-no2').textContent = dayData.no2 + ' ppb';
+            document.getElementById('current-o3').textContent = dayData.o3 + ' ppb';
+        }
+        
+        function initializeLocationSelector() {
+            const selector = document.getElementById('location-select');
+            selector.addEventListener('change', function() {
+                // Simulate location change
+                AirGuard.showNotification(`Switched to ${this.options[this.selectedIndex].text}`, 'success');
+                
+                // Update forecast data for new location
+                generateForecastCards();
+                updateCurrentDayDisplay(0);
+            });
+        }
+        
+        function initializeForecastControls() {
+            const pollutantSelect = document.getElementById('forecast-pollutant');
+            const timeRange = document.getElementById('time-range');
+            const updateBtn = document.getElementById('update-forecast');
+            
+            // Instant updates for dropdowns
+            pollutantSelect.addEventListener('change', function() {
+                AirGuard.showNotification(`Switched to ${this.options[this.selectedIndex].text} forecast`, 'success');
+                generateForecastCards();
+            });
+            
+            timeRange.addEventListener('change', function() {
+                AirGuard.showNotification(`Updated to ${this.options[this.selectedIndex].text}`, 'success');
+                generateForecastCards();
+            });
+            
+            // Update button
+            updateBtn.addEventListener('click', function() {
+                this.textContent = 'Updating...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    generateForecastCards();
+                    this.textContent = 'Update Forecast';
+                    this.disabled = false;
+                    AirGuard.showNotification('Forecast updated successfully!', 'success');
+                }, 1500);
+            });
+        }
+        
+        function initializeScrollAnimations() {
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('revealed');
+                    }
+                });
+            }, observerOptions);
+            
+            document.querySelectorAll('.scroll-reveal').forEach(el => {
+                observer.observe(el);
+            });
+        }
+    </script>
+</body>
+</html>

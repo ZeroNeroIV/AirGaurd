@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirGuard - Data Validation & Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/typed.js/2.0.12/typed.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/splitting@1.0.6/dist/splitting.css">
+    <script src="https://unpkg.com/splitting@1.0.6/dist/splitting.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --forest-green: #2D5016;
+            --sage-green: #8FBC8F;
+            --warm-cream: #F5F5DC;
+            --charcoal: #36454F;
+            --amber-alert: #FFBF00;
+            --coral-red: #FF4040;
+            --sky-blue: #87CEEB;
+            --lavender: #E6E6FA;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--warm-cream) 0%, #f8f9fa 100%);
+            color: var(--charcoal);
+        }
+        
+        .hero-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .validation-card {
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+        
+        .validation-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--forest-green);
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        
+        .data-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .data-table::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .data-table::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .data-table::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        
+        .correlation-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .correlation-excellent {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        
+        .correlation-good {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        
+        .correlation-poor {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+        
+        .scroll-reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .export-btn {
+            transition: all 0.3s ease;
+        }
+        
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 glass-effect">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">AG</span>
+                    </div>
+                    <span class="hero-title text-xl text-gray-800">AirGuard</span>
+                </div>
+                
+                <div class="hidden md:flex space-x-8">
+                    <a href="index.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Dashboard</a>
+                    <a href="forecast.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Forecast</a>
+                    <a href="alerts.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Alerts</a>
+                    <a href="validation.html" class="nav-link text-green-600 font-medium">Data Validation</a>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="w-3 h-3 bg-green-400 rounded-full pulse-animation"></div>
+                    <span class="text-sm text-gray-600">Live Data</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Hero Section -->
+    <section class="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto text-center">
+            <h1 class="hero-title text-5xl md:text-6xl text-gray-800 mb-6" data-splitting>
+                Data Validation
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
+                Compare NASA TEMPO satellite measurements with ground-based monitoring networks
+            </p>
+        </div>
+    </section>
+    
+    <!-- Validation Controls -->
+    <section class="py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Pollutant</label>
+                        <select id="pollutant-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <option value="no2">NO₂</option>
+                            <option value="o3">Ozone (O₃)</option>
+                            <option value="pm25">PM2.5</option>
+                            <option value="hcho">Formaldehyde (HCHO)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Time Period</label>
+                        <select id="time-period" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <option value="24h">Last 24 Hours</option>
+                            <option value="7d">Last 7 Days</option>
+                            <option value="30d">Last 30 Days</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Region</label>
+                        <select id="region-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <option value="northeast">Northeast US</option>
+                            <option value="southeast">Southeast US</option>
+                            <option value="midwest">Midwest US</option>
+                            <option value="west">Western US</option>
+                            <option value="california">California</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex items-end">
+                        <button id="update-validation" class="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+                            Update Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Validation Summary -->
+    <section class="py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="validation-card bg-white rounded-xl shadow-lg p-6 text-center scroll-reveal">
+                    <div class="text-3xl mb-3">🛰️</div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">TEMPO Data Points</h3>
+                    <div class="text-3xl font-bold text-blue-600 mb-1" id="tempo-count">1,247</div>
+                    <p class="text-sm text-gray-500">Satellite measurements</p>
+                </div>
+                
+                <div class="validation-card bg-white rounded-xl shadow-lg p-6 text-center scroll-reveal">
+                    <div class="text-3xl mb-3">🏢</div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Ground Stations</h3>
+                    <div class="text-3xl font-bold text-green-600 mb-1" id="ground-count">89</div>
+                    <p class="text-sm text-gray-500">EPA & Pandora networks</p>
+                </div>
+                
+                <div class="validation-card bg-white rounded-xl shadow-lg p-6 text-center scroll-reveal">
+                    <div class="text-3xl mb-3">📊</div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Correlation</h3>
+                    <div class="text-3xl font-bold text-purple-600 mb-1" id="correlation-value">0.87</div>
+                    <p class="text-sm text-gray-500">Satellite vs Ground</p>
+                </div>
+                
+                <div class="validation-card bg-white rounded-xl shadow-lg p-6 text-center scroll-reveal">
+                    <div class="text-3xl mb-3">✅</div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Validation Status</h3>
+                    <div class="correlation-badge correlation-excellent mb-1">Excellent</div>
+                    <p class="text-sm text-gray-500">Data quality confirmed</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Comparison Charts -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Satellite vs Ground Comparison</h2>
+                <p class="text-lg text-gray-600">Real-time validation of TEMPO measurements against ground-based sensors</p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Time Series Comparison -->
+                <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-semibold text-gray-800">Time Series Comparison</h3>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+                                <span class="text-sm text-gray-600">TEMPO</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                                <span class="text-sm text-gray-600">Ground</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="time-series-chart" class="h-80"></div>
+                </div>
+                
+                <!-- Scatter Plot Correlation -->
+                <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-semibold text-gray-800">Correlation Analysis</h3>
+                        <div class="text-sm text-gray-500">R² = 0.76</div>
+                    </div>
+                    
+                    <div id="scatter-plot-chart" class="h-80"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Regional Analysis -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Regional Validation Results</h2>
+                <p class="text-lg text-gray-600">Correlation coefficients across different regions and pollutant types</p>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden scroll-reveal">
+                <div class="data-table">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Region</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NO₂ Correlation</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">O₃ Correlation</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PM2.5 Correlation</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Points</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Northeast US</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">0.89</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">0.92</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-good">0.76</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1,247</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">Validated</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Southeast US</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-good">0.78</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">0.85</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-good">0.71</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">892</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">Validated</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Midwest US</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-good">0.82</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">0.88</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">0.84</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1,156</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">Validated</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Western US</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-good">0.75</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">0.91</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-poor">0.63</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">743</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-good">Reviewing</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">California</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">0.86</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">0.94</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-good">0.79</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1,089</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="correlation-badge correlation-excellent">Validated</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Data Quality Metrics -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Data Quality Assessment</h2>
+                <p class="text-lg text-gray-600">Comprehensive analysis of measurement accuracy and reliability</p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Quality Metrics Chart -->
+                <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6">Quality Metrics Over Time</h3>
+                    <div id="quality-metrics-chart" class="h-80"></div>
+                </div>
+                
+                <!-- Uncertainty Analysis -->
+                <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6">Measurement Uncertainty</h3>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-gray-700">TEMPO NO₂</span>
+                                <span class="text-sm text-gray-500">± 1.2 ppb</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: 15%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-gray-700">Ground NO₂</span>
+                                <span class="text-sm text-gray-500">± 0.8 ppb</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-green-600 h-2 rounded-full" style="width: 10%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-gray-700">TEMPO O₃</span>
+                                <span class="text-sm text-gray-500">± 2.1 ppb</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-orange-600 h-2 rounded-full" style="width: 25%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-gray-700">Ground O₃</span>
+                                <span class="text-sm text-gray-500">± 1.5 ppb</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-purple-600 h-2 rounded-full" style="width: 18%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4 border-t border-gray-200">
+                            <h4 class="font-medium text-gray-800 mb-3">Quality Flags</h4>
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-3 h-3 bg-green-400 rounded-full"></div>
+                                    <span>Cloud-free: 78%</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                                    <span>Partly cloudy: 18%</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-3 h-3 bg-red-400 rounded-full"></div>
+                                    <span>Cloudy: 4%</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-3 h-3 bg-gray-400 rounded-full"></div>
+                                    <span>No data: 0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Export Tools -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Data Export & Tools</h2>
+                <p class="text-lg text-gray-600">Download validation data for further analysis and research</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="export-btn bg-white rounded-xl shadow-lg p-6 text-center scroll-reveal">
+                    <div class="text-4xl mb-4">📊</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Export Comparison Data</h3>
+                    <p class="text-gray-600 mb-6">Download satellite vs ground measurement data in CSV format</p>
+                    <button class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                        Download CSV
+                    </button>
+                </div>
+                
+                <div class="export-btn bg-white rounded-xl shadow-lg p-6 text-center scroll-reveal">
+                    <div class="text-4xl mb-4">📈</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Generate Report</h3>
+                    <p class="text-gray-600 mb-6">Create comprehensive validation report with statistics</p>
+                    <button class="w-full px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                        Generate PDF
+                    </button>
+                </div>
+                
+                <div class="export-btn bg-white rounded-xl shadow-lg p-6 text-center scroll-reveal">
+                    <div class="text-4xl mb-4">🔬</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">API Access</h3>
+                    <p class="text-gray-600 mb-6">Access validation data programmatically via REST API</p>
+                    <button class="w-full px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                        Get API Key
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="flex items-center justify-center space-x-2 mb-4">
+                <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-sm">AG</span>
+                </div>
+                <span class="hero-title text-xl">AirGuard</span>
+            </div>
+            <p class="text-gray-400 text-sm">
+                AirGuard - Protecting health through advanced air quality monitoring.
+            </p>
+        </div>
+    </footer>
+    
+    <script src="main.js"></script>
+    <script>
+        // Validation page specific functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeValidationPage();
+        });
+        
+        function initializeValidationPage() {
+            initializeScrollAnimations();
+            initializeValidationCharts();
+            initializeValidationControls();
+            initializeExportButtons();
+        }
+        
+        function initializeScrollAnimations() {
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('revealed');
+                    }
+                });
+            }, observerOptions);
+            
+            document.querySelectorAll('.scroll-reveal').forEach(el => {
+                observer.observe(el);
+            });
+        }
+        
+        function initializeValidationCharts() {
+            // Time Series Comparison Chart
+            const timeSeriesChart = echarts.init(document.getElementById('time-series-chart'));
+            
+            // Generate sample time series data
+            const timeData = [];
+            const tempoData = [];
+            const groundData = [];
+            
+            for (let i = 0; i < 24; i++) {
+                const time = `${i.toString().padStart(2, '0')}:00`;
+                timeData.push(time);
+                tempoData.push((Math.random() * 20 + 10).toFixed(1));
+                groundData.push((Math.random() * 18 + 12).toFixed(1));
+            }
+            
+            const timeSeriesOption = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross'
+                    }
+                },
+                legend: {
+                    data: ['TEMPO', 'Ground Station'],
+                    bottom: 10
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: timeData,
+                    axisLine: {
+                        lineStyle: {
+                            color: '#8FBC8F'
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'NO₂ (ppb)',
+                    axisLine: {
+                        lineStyle: {
+                            color: '#8FBC8F'
+                        }
+                    }
+                },
+                series: [
+                    {
+                        name: 'TEMPO',
+                        type: 'line',
+                        data: tempoData,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#3B82F6',
+                            width: 2
+                        },
+                        itemStyle: {
+                            color: '#3B82F6'
+                        }
+                    },
+                    {
+                        name: 'Ground Station',
+                        type: 'line',
+                        data: groundData,
+                        smooth: true,
+                        lineStyle: {
+                            color: '#10B981',
+                            width: 2
+                        },
+                        itemStyle: {
+                            color: '#10B981'
+                        }
+                    }
+                ]
+            };
+            
+            timeSeriesChart.setOption(timeSeriesOption);
+            
+            // Scatter Plot Chart
+            const scatterChart = echarts.init(document.getElementById('scatter-plot-chart'));
+            
+            // Generate scatter plot data
+            const scatterData = [];
+            for (let i = 0; i < 50; i++) {
+                const tempo = Math.random() * 30 + 5;
+                const ground = tempo + (Math.random() - 0.5) * 8;
+                scatterData.push([tempo, ground]);
+            }
+            
+            const scatterOption = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: 'TEMPO: {c0} ppb<br/>Ground: {c1} ppb'
+                },
+                grid: {
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%',
+                    top: '10%'
+                },
+                xAxis: {
+                    type: 'value',
+                    name: 'TEMPO NO₂ (ppb)',
+                    nameLocation: 'middle',
+                    nameGap: 30,
+                    axisLine: {
+                        lineStyle: {
+                            color: '#8FBC8F'
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Ground NO₂ (ppb)',
+                    nameLocation: 'middle',
+                    nameGap: 40,
+                    axisLine: {
+                        lineStyle: {
+                            color: '#8FBC8F'
+                        }
+                    }
+                },
+                series: [
+                    {
+                        type: 'scatter',
+                        data: scatterData,
+                        symbolSize: 6,
+                        itemStyle: {
+                            color: '#8B5CF6',
+                            opacity: 0.7
+                        }
+                    },
+                    {
+                        type: 'line',
+                        data: [[0, 0], [35, 35]],
+                        lineStyle: {
+                            color: '#EF4444',
+                            type: 'dashed',
+                            width: 2
+                        },
+                        symbol: 'none',
+                        name: 'Perfect Correlation'
+                    }
+                ]
+            };
+            
+            scatterChart.setOption(scatterOption);
+            
+            // Quality Metrics Chart
+            const qualityChart = echarts.init(document.getElementById('quality-metrics-chart'));
+            
+            const qualityOption = {
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    data: ['Data Quality', 'Cloud Coverage', 'Correlation'],
+                    bottom: 10
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                    axisLine: {
+                        lineStyle: {
+                            color: '#8FBC8F'
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: {
+                        lineStyle: {
+                            color: '#8FBC8F'
+                        }
+                    }
+                },
+                series: [
+                    {
+                        name: 'Data Quality',
+                        type: 'bar',
+                        data: [0.89, 0.92, 0.87, 0.91],
+                        itemStyle: {
+                            color: '#10B981'
+                        }
+                    },
+                    {
+                        name: 'Cloud Coverage',
+                        type: 'line',
+                        data: [0.15, 0.08, 0.22, 0.12],
+                        itemStyle: {
+                            color: '#F59E0B'
+                        }
+                    },
+                    {
+                        name: 'Correlation',
+                        type: 'line',
+                        data: [0.85, 0.88, 0.82, 0.87],
+                        itemStyle: {
+                            color: '#3B82F6'
+                        }
+                    }
+                ]
+            };
+            
+            qualityChart.setOption(qualityOption);
+            
+            // Make charts responsive
+            window.addEventListener('resize', function() {
+                timeSeriesChart.resize();
+                scatterChart.resize();
+                qualityChart.resize();
+            });
+        }
+        
+        function initializeValidationControls() {
+            const updateBtn = document.getElementById('update-validation');
+            const pollutantSelect = document.getElementById('pollutant-select');
+            const timePeriod = document.getElementById('time-period');
+            const regionSelect = document.getElementById('region-select');
+            
+            updateBtn.addEventListener('click', function() {
+                // Simulate data update
+                this.textContent = 'Updating...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    // Update summary statistics
+                    document.getElementById('tempo-count').textContent = Math.floor(Math.random() * 500 + 1000);
+                    document.getElementById('ground-count').textContent = Math.floor(Math.random() * 50 + 70);
+                    document.getElementById('correlation-value').textContent = (Math.random() * 0.3 + 0.7).toFixed(2);
+                    
+                    this.textContent = 'Update Analysis';
+                    this.disabled = false;
+                    
+                    AirGuard.showNotification('Validation data updated successfully!', 'success');
+                }, 2000);
+            });
+            
+            // Handle select changes
+            [pollutantSelect, timePeriod, regionSelect].forEach(select => {
+                select.addEventListener('change', function() {
+                    console.log(`${this.id} changed to: ${this.value}`);
+                });
+            });
+        }
+        
+        function initializeExportButtons() {
+            const exportButtons = document.querySelectorAll('.export-btn button');
+            
+            exportButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const buttonText = this.textContent;
+                    this.textContent = 'Processing...';
+                    this.disabled = true;
+                    
+                    setTimeout(() => {
+                        this.textContent = 'Downloaded!';
+                        AirGuard.showNotification(`${buttonText} completed successfully!`, 'success');
+                        
+                        setTimeout(() => {
+                            this.textContent = buttonText;
+                            this.disabled = false;
+                        }, 2000);
+                    }, 1500);
+                });
+            });
+        }
+    </script>
+</body>
+</html>

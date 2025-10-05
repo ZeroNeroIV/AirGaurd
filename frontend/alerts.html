@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirGuard - Smart Alerts & Notifications</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/typed.js/2.0.12/typed.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/splitting@1.0.6/dist/splitting.css">
+    <script src="https://unpkg.com/splitting@1.0.6/dist/splitting.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --forest-green: #2D5016;
+            --sage-green: #8FBC8F;
+            --warm-cream: #F5F5DC;
+            --charcoal: #36454F;
+            --amber-alert: #FFBF00;
+            --coral-red: #FF4040;
+            --sky-blue: #87CEEB;
+            --lavender: #E6E6FA;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--warm-cream) 0%, #f8f9fa 100%);
+            color: var(--charcoal);
+        }
+        
+        .hero-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .alert-card {
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+        
+        .alert-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--forest-green);
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: var(--forest-green);
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .threshold-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #98D8C8, #FFD700, #FF6B6B);
+            outline: none;
+        }
+        
+        .threshold-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #2D5016;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .threshold-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #2D5016;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+        
+        .scroll-reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 glass-effect">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">AG</span>
+                    </div>
+                    <span class="hero-title text-xl text-gray-800">AirGuard</span>
+                </div>
+                
+                <div class="hidden md:flex space-x-8">
+                    <a href="index.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Dashboard</a>
+                    <a href="forecast.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Forecast</a>
+                    <a href="alerts.html" class="nav-link text-green-600 font-medium">Alerts</a>
+                    <a href="validation.html" class="nav-link text-gray-700 hover:text-green-600 font-medium">Data Validation</a>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="w-3 h-3 bg-green-400 rounded-full pulse-animation"></div>
+                    <span class="text-sm text-gray-600">Live Data</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Hero Section -->
+    <section class="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto text-center">
+            <h1 class="hero-title text-5xl md:text-6xl text-gray-800 mb-6" data-splitting>
+                Smart Health Alerts
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
+                Personalized air quality notifications based on your health profile and location
+            </p>
+        </div>
+    </section>
+    
+    <!-- Alert Status Dashboard -->
+    <section class="py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800">Current Alert Status</h2>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3 h-3 bg-green-400 rounded-full pulse-animation"></div>
+                        <span class="text-sm text-gray-600">All Systems Active</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <div class="text-3xl mb-2">✅</div>
+                        <h3 class="font-semibold text-green-800 mb-1">Air Quality</h3>
+                        <p class="text-sm text-green-600">Good - No alerts</p>
+                    </div>
+                    
+                    <div class="text-center p-4 bg-blue-50 rounded-lg">
+                        <div class="text-3xl mb-2">📍</div>
+                        <h3 class="font-semibold text-blue-800 mb-1">Active Locations</h3>
+                        <p class="text-sm text-blue-600">3 locations monitored</p>
+                    </div>
+                    
+                    <div class="text-center p-4 bg-purple-50 rounded-lg">
+                        <div class="text-3xl mb-2">🔔</div>
+                        <h3 class="font-semibold text-purple-800 mb-1">Notifications</h3>
+                        <p class="text-sm text-purple-600">Email & SMS enabled</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Health Profile Setup -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Health Profile</h2>
+                <p class="text-lg text-gray-600">Customize alerts based on your health conditions and sensitivity</p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Health Conditions -->
+                <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6">Health Conditions</h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">🫁</span>
+                                <div>
+                                    <p class="font-medium text-gray-800">Asthma</p>
+                                    <p class="text-sm text-gray-500">Increased sensitivity to air pollution</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="asthma-toggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">🤧</span>
+                                <div>
+                                    <p class="font-medium text-gray-800">Allergies</p>
+                                    <p class="text-sm text-gray-500">Sensitive to pollen and particulates</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="allergies-toggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">❤️</span>
+                                <div>
+                                    <p class="font-medium text-gray-800">Heart Disease</p>
+                                    <p class="text-sm text-gray-500">Cardiovascular sensitivity to pollution</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="heart-toggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">👶</span>
+                                <div>
+                                    <p class="font-medium text-gray-800">Children in Household</p>
+                                    <p class="text-sm text-gray-500">Children are more vulnerable to air pollution</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="children-toggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">👴</span>
+                                <div>
+                                    <p class="font-medium text-gray-800">Elderly Care</p>
+                                    <p class="text-sm text-gray-500">Seniors are at higher risk</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="elderly-toggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Activity Preferences -->
+                <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6">Activity Preferences</h3>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-3">Outdoor Exercise Frequency</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <button class="activity-btn px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-green-50 hover:border-green-300 transition-colors" data-frequency="daily">
+                                    Daily
+                                </button>
+                                <button class="activity-btn px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-green-50 hover:border-green-300 transition-colors" data-frequency="weekly">
+                                    3-4 times/week
+                                </button>
+                                <button class="activity-btn px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-green-50 hover:border-green-300 transition-colors" data-frequency="weekend">
+                                    Weekends only
+                                </button>
+                                <button class="activity-btn px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-green-50 hover:border-green-300 transition-colors" data-frequency="rare">
+                                    Occasionally
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-3">Exercise Intensity</label>
+                            <div class="grid grid-cols-3 gap-3">
+                                <button class="intensity-btn px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-blue-50 hover:border-blue-300 transition-colors" data-intensity="light">
+                                    Light
+                                </button>
+                                <button class="intensity-btn px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-blue-50 hover:border-blue-300 transition-colors" data-intensity="moderate">
+                                    Moderate
+                                </button>
+                                <button class="intensity-btn px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-blue-50 hover:border-blue-300 transition-colors" data-intensity="vigorous">
+                                    Vigorous
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-3">Preferred Exercise Time</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <button class="time-btn px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-orange-50 hover:border-orange-300 transition-colors" data-time="morning">
+                                    Morning (6-10 AM)
+                                </button>
+                                <button class="time-btn px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-orange-50 hover:border-orange-300 transition-colors" data-time="afternoon">
+                                    Afternoon (12-4 PM)
+                                </button>
+                                <button class="time-btn px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-orange-50 hover:border-orange-300 transition-colors" data-time="evening">
+                                    Evening (4-8 PM)
+                                </button>
+                                <button class="time-btn px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-orange-50 hover:border-orange-300 transition-colors" data-time="flexible">
+                                    Flexible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Alert Thresholds -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Alert Thresholds</h2>
+                <p class="text-lg text-gray-600">Customize when you receive notifications based on air quality levels</p>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <!-- AQI Threshold -->
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Air Quality Index</h3>
+                        <div class="mb-4">
+                            <input type="range" id="aqi-threshold" class="threshold-slider w-full" min="25" max="150" value="75" step="5">
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mb-2">
+                            <span>25</span>
+                            <span>150</span>
+                        </div>
+                        <div class="text-2xl font-bold text-blue-600" id="aqi-threshold-value">75</div>
+                        <p class="text-sm text-gray-600">Alert when AQI exceeds this value</p>
+                    </div>
+                    
+                    <!-- PM2.5 Threshold -->
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">PM2.5</h3>
+                        <div class="mb-4">
+                            <input type="range" id="pm25-threshold" class="threshold-slider w-full" min="5" max="50" value="20" step="1">
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mb-2">
+                            <span>5</span>
+                            <span>50</span>
+                        </div>
+                        <div class="text-2xl font-bold text-green-600" id="pm25-threshold-value">20</div>
+                        <p class="text-sm text-gray-600">μg/m³ threshold</p>
+                    </div>
+                    
+                    <!-- NO2 Threshold -->
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">NO₂</h3>
+                        <div class="mb-4">
+                            <input type="range" id="no2-threshold" class="threshold-slider w-full" min="10" max="100" value="40" step="5">
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mb-2">
+                            <span>10</span>
+                            <span>100</span>
+                        </div>
+                        <div class="text-2xl font-bold text-purple-600" id="no2-threshold-value">40</div>
+                        <p class="text-sm text-gray-600">ppb threshold</p>
+                    </div>
+                    
+                    <!-- Ozone Threshold -->
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">O₃</h3>
+                        <div class="mb-4">
+                            <input type="range" id="o3-threshold" class="threshold-slider w-full" min="20" max="120" value="60" step="5">
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mb-2">
+                            <span>20</span>
+                            <span>120</span>
+                        </div>
+                        <div class="text-2xl font-bold text-orange-600" id="o3-threshold-value">60</div>
+                        <p class="text-sm text-gray-600">ppb threshold</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Location Management -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Monitor Locations</h2>
+                <p class="text-lg text-gray-600">Set up alerts for multiple locations that matter to you</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Location Cards -->
+                <div class="alert-card bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Home</h3>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-3 h-3 bg-green-400 rounded-full"></div>
+                            <span class="text-xs text-gray-500">Active</span>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-600">📍</span>
+                            <span class="text-sm text-gray-800">New York, NY 10001</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-600">🌬️</span>
+                            <span class="text-sm text-green-600">AQI: 42 (Good)</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-600">🔔</span>
+                            <span class="text-sm text-gray-600">Email + SMS alerts</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <button class="text-sm text-blue-600 hover:text-blue-800 transition-colors">Edit Settings</button>
+                    </div>
+                </div>
+                
+                <div class="alert-card bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Work</h3>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                            <span class="text-xs text-gray-500">Moderate</span>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-600">📍</span>
+                            <span class="text-sm text-gray-800">Manhattan, NY 10016</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-600">🌬️</span>
+                            <span class="text-sm text-yellow-600">AQI: 68 (Moderate)</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-600">🔔</span>
+                            <span class="text-sm text-gray-600">Email alerts only</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <button class="text-sm text-blue-600 hover:text-blue-800 transition-colors">Edit Settings</button>
+                    </div>
+                </div>
+                
+                <div class="alert-card bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Child's School</h3>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-3 h-3 bg-green-400 rounded-full"></div>
+                            <span class="text-xs text-gray-500">Active</span>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-600">📍</span>
+                            <span class="text-sm text-gray-800">Brooklyn, NY 11201</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-600">🌬️</span>
+                            <span class="text-sm text-green-600">AQI: 38 (Good)</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-600">🔔</span>
+                            <span class="text-sm text-gray-600">Push notifications</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <button class="text-sm text-blue-600 hover:text-blue-800 transition-colors">Edit Settings</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-8 scroll-reveal">
+                <button id="add-location-btn" class="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                    + Add New Location
+                </button>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Notification Preferences -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Notification Preferences</h2>
+                <p class="text-lg text-gray-600">Choose how and when you receive air quality alerts</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6">Alert Methods</h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">📧</span>
+                                <div>
+                                    <p class="font-medium text-gray-800">Email Notifications</p>
+                                    <p class="text-sm text-gray-500">Receive detailed alerts via email</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="email-toggle" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">📱</span>
+                                <div>
+                                    <p class="font-medium text-gray-800">SMS Alerts</p>
+                                    <p class="text-sm text-gray-500">Quick text message notifications</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="sms-toggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">🔔</span>
+                                <div>
+                                    <p class="font-medium text-gray-800">Push Notifications</p>
+                                    <p class="text-sm text-gray-500">Browser and mobile app alerts</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="push-toggle" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6">Alert Timing</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quiet Hours</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">From</label>
+                                    <input type="time" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="22:00">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">To</label>
+                                    <input type="time" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value="07:00">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Alert Frequency</label>
+                            <select class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                <option>Immediate (as conditions change)</option>
+                                <option>Hourly updates</option>
+                                <option>Daily summary</option>
+                                <option>Only when conditions worsen</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Minimum Alert Level</label>
+                            <select class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                <option>All conditions</option>
+                                <option>Moderate and above</option>
+                                <option>Unhealthy for sensitive groups</option>
+                                <option>Unhealthy for everyone</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Sample Alerts -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12 scroll-reveal">
+                <h2 class="hero-title text-4xl text-gray-800 mb-4">Recent Alerts</h2>
+                <p class="text-lg text-gray-600">Examples of notifications you might receive</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="alert-card bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                        <span class="text-sm font-medium text-yellow-600">Moderate Alert</span>
+                    </div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Air Quality Advisory</h3>
+                    <p class="text-sm text-gray-600 mb-3">Air quality in your area has reached moderate levels (AQI: 65). Consider limiting prolonged outdoor activities if you have respiratory conditions.</p>
+                    <div class="text-xs text-gray-500">2 hours ago • New York, NY</div>
+                </div>
+                
+                <div class="alert-card bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-3 h-3 bg-green-400 rounded-full"></div>
+                        <span class="text-sm font-medium text-green-600">All Clear</span>
+                    </div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Air Quality Improved</h3>
+                    <p class="text-sm text-gray-600 mb-3">Great news! Air quality has improved to good levels (AQI: 35). Safe for all outdoor activities and exercise.</p>
+                    <div class="text-xs text-gray-500">6 hours ago • New York, NY</div>
+                </div>
+                
+                <div class="alert-card bg-white rounded-xl shadow-lg p-6 scroll-reveal">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-3 h-3 bg-blue-400 rounded-full"></div>
+                        <span class="text-sm font-medium text-blue-600">Exercise Alert</span>
+                    </div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Perfect Exercise Window</h3>
+                    <p class="text-sm text-gray-600 mb-3">Current conditions are excellent for outdoor exercise (AQI: 28, Temperature: 72°F). Ideal for your morning run!</p>
+                    <div class="text-xs text-gray-500">Yesterday • New York, NY</div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Save Settings -->
+    <section class="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="scroll-reveal">
+                <h2 class="hero-title text-3xl text-gray-800 mb-4">Ready to Protect Your Health?</h2>
+                <p class="text-lg text-gray-600 mb-8">Save your preferences to start receiving personalized air quality alerts</p>
+                
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button id="save-settings" class="px-8 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg font-semibold hover:from-green-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105">
+                        Save Alert Settings
+                    </button>
+                    <button class="px-8 py-4 border-2 border-green-600 text-green-600 rounded-lg font-semibold hover:bg-green-600 hover:text-white transition-all duration-300">
+                        Test Alert System
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="flex items-center justify-center space-x-2 mb-4">
+                <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-sm">AG</span>
+                </div>
+                <span class="hero-title text-xl">AirGuard</span>
+            </div>
+            <p class="text-gray-400 text-sm">
+                AirGuard - Protecting health through advanced air quality monitoring.
+            </p>
+        </div>
+    </footer>
+    
+    <script src="main.js"></script>
+    <script>
+        // Alerts page specific functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeAlertsPage();
+        });
+        
+        function initializeAlertsPage() {
+            initializeScrollAnimations();
+            initializeHealthToggles();
+            initializeActivityButtons();
+            initializeThresholdSliders();
+            initializeNotificationToggles();
+            initializeSaveButton();
+        }
+        
+        function initializeScrollAnimations() {
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('revealed');
+                    }
+                });
+            }, observerOptions);
+            
+            document.querySelectorAll('.scroll-reveal').forEach(el => {
+                observer.observe(el);
+            });
+        }
+        
+        function initializeHealthToggles() {
+            const healthToggles = document.querySelectorAll('input[type="checkbox"][id$="-toggle"]');
+            
+            healthToggles.forEach(toggle => {
+                toggle.addEventListener('change', function() {
+                    const condition = this.id.replace('-toggle', '');
+                    const status = this.checked ? 'enabled' : 'disabled';
+                    
+                    // Simulate saving to backend
+                    console.log(`${condition} alerts ${status}`);
+                    
+                    if (this.checked) {
+                        AirGuard.showNotification(`${condition.charAt(0).toUpperCase() + condition.slice(1)} alerts enabled`, 'success');
+                    }
+                });
+            });
+        }
+        
+        function initializeActivityButtons() {
+            const activityButtons = document.querySelectorAll('.activity-btn, .intensity-btn, .time-btn');
+            
+            activityButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from siblings
+                    const siblings = this.parentElement.querySelectorAll('button');
+                    siblings.forEach(btn => btn.classList.remove('bg-green-100', 'border-green-500', 'text-green-700'));
+                    
+                    // Add active class to clicked button
+                    this.classList.add('bg-green-100', 'border-green-500', 'text-green-700');
+                    
+                    // Get the data attribute
+                    const dataType = this.classList.contains('activity-btn') ? 'frequency' : 
+                                   this.classList.contains('intensity-btn') ? 'intensity' : 'time';
+                    const value = this.dataset[dataType];
+                    
+                    console.log(`${dataType} set to: ${value}`);
+                });
+            });
+        }
+        
+        function initializeThresholdSliders() {
+            const sliders = document.querySelectorAll('.threshold-slider');
+            
+            sliders.forEach(slider => {
+                const valueDisplay = document.getElementById(slider.id + '-value');
+                
+                slider.addEventListener('input', function() {
+                    valueDisplay.textContent = this.value;
+                    
+                    // Update color based on value
+                    const value = parseInt(this.value);
+                    let color = '#10B981'; // Green
+                    
+                    if (slider.id === 'aqi-threshold') {
+                        if (value > 100) color = '#EF4444'; // Red
+                        else if (value > 50) color = '#F59E0B'; // Yellow
+                    } else {
+                        // For other pollutants, use a different scale
+                        if (value > 50) color = '#EF4444';
+                        else if (value > 25) color = '#F59E0B';
+                    }
+                    
+                    valueDisplay.style.color = color;
+                });
+            });
+        }
+        
+        function initializeNotificationToggles() {
+            const notificationToggles = document.querySelectorAll('#email-toggle, #sms-toggle, #push-toggle');
+            
+            notificationToggles.forEach(toggle => {
+                toggle.addEventListener('change', function() {
+                    const method = this.id.replace('-toggle', '').toUpperCase();
+                    const status = this.checked ? 'enabled' : 'disabled';
+                    
+                    console.log(`${method} notifications ${status}`);
+                    
+                    if (this.checked) {
+                        AirGuard.showNotification(`${method} notifications enabled`, 'success');
+                    }
+                });
+            });
+        }
+        
+        function initializeSaveButton() {
+            const saveButton = document.getElementById('save-settings');
+            
+            saveButton.addEventListener('click', function() {
+                // Simulate saving settings
+                this.textContent = 'Saving...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    this.textContent = 'Settings Saved!';
+                    this.classList.remove('from-green-600', 'to-blue-600', 'hover:from-green-700', 'hover:to-blue-700');
+                    this.classList.add('bg-green-600', 'hover:bg-green-700');
+                    
+                    AirGuard.showNotification('Alert settings saved successfully!', 'success');
+                    
+                    setTimeout(() => {
+                        this.textContent = 'Save Alert Settings';
+                        this.disabled = false;
+                        this.classList.add('from-green-600', 'to-blue-600', 'hover:from-green-700', 'hover:to-blue-700');
+                        this.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    }, 2000);
+                }, 1500);
+            });
+        }
+        
+        // Add location functionality
+        document.getElementById('add-location-btn').addEventListener('click', function() {
+            AirGuard.showNotification('Location picker coming soon!', 'info');
+        });
+    </script>
+</body>
+</html>
